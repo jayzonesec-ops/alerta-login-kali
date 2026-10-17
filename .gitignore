@@ -1,0 +1,16 @@
+# Logs gerados em runtime
+Alerta_Login.log
+*.log
+
+# Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Ambiente virtual (se usar)
+venv/
+.venv/
+
+# Arquivos temporários
+*.tmp
+.DS_Store
