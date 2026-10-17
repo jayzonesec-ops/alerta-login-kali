@@ -136,7 +136,7 @@ Gerenciadores/Alerta_Login_Kali/
 
 ```bash
 git clone https://github.com/jayzonesec-ops/alerta-login-kali.git
-cd Alerta_Login_Kali
+cd alerta-login-kali
 ```
 ---
 
