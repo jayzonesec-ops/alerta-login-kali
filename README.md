@@ -77,9 +77,6 @@ O script:
 | Reboot | `systemd-shutdown`, `systemd-logind`, `gnome-session` | ✅ | ❌ |
 | Shutdown | `systemd-shutdown`, `systemd-logind`, `gnome-session` | ✅ | ❌ |
 
-> [!TIP]
-> Eventos como **SSH**, **sudo**, **USB**, **rede**, **bluetooth** e **microSD** foram **intencionalmente removidos** para reduzir ruído. Se quiser reativar algum, basta adicionar o filtro no loop `for` dentro de `monitorar_journalctl()`.
-
 ---
 
 ## 🛠 Tecnologias Utilizadas
@@ -129,11 +126,8 @@ Gerenciadores/Alerta_Login_Kali/
 ├── Alerta_Login.py        # Script principal
 ├── Alerta_Login.log       # Log gerado em runtime (não versionar)
 └── README.md              # Este arquivo
+└── LICENSE
 ```
-
-> [!NOTE]
-> Recomendo adicionar `Alerta_Login.log` e `__pycache__/` ao `.gitignore` para não versionar logs e cache.
-
 ---
 
 ## ⚙️ Configuração e Execução
@@ -141,18 +135,10 @@ Gerenciadores/Alerta_Login_Kali/
 ### 1️⃣ Clonar o repositório
 
 ```bash
-git clone https://github.com/jayzonesec-ops/Alerta_Login_Kali.git
+git clone https://github.com/jayzonesec-ops/alerta-login-kali.git
 cd Alerta_Login_Kali
 ```
-
-O projeto será criado na pasta `Alerta_Login_Kali/`, dentro do diretório onde o comando foi executado. Por padrão, isso cai em:
-
-```text
-/home/<seu_usuario>/Alerta_Login_Kali/
-```
-
-> [!IMPORTANT]
-> Todos os exemplos abaixo usam `/home/usuario/Alerta_Login_Kali/`. **Troque `usuario` pelo seu nome de usuário real.** Para descobrir, rode `echo $HOME`.
+---
 
 ### 2️⃣ Editar as credenciais do Telegram
 
@@ -273,9 +259,6 @@ No topo do script, você pode ajustar:
 | `TOKEN_TELEGRAM` | Token do bot | (obrigatório) |
 | `CHAT_ID_TELEGRAM` | ID do chat que recebe alertas | (obrigatório) |
 | `COOLDOWN_FOTO_FALHA` | Segundos entre fotos em falha de login | `60` |
-
-> [!TIP]
-> Se quiser **remover a foto no login bem-sucedido**, basta apagar a chamada `enviar_foto_telegram(...)` dentro do bloco "Sucesso no login local".
 
 ---
 
