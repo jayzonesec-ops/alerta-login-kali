@@ -2,10 +2,24 @@
 import subprocess
 import re
 import requests
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Carrega o .env da mesma pasta onde este arquivo está (/opt/soc/.env)
+caminho_env = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=caminho_env)
+
+TOKEN_TELEGRAM = os.getenv("TOKEN_TELEGRAM")
+CHAT_ID_TELEGRAM = os.getenv("CHAT_ID_TELEGRAM")
+
+if not TOKEN_TELEGRAM or not CHAT_ID_TELEGRAM:
+    raise RuntimeError(
+        "Credenciais do Telegram não configuradas. "
+        "Certifique-se de que /opt/soc/.env contém TOKEN_TELEGRAM e CHAT_ID_TELEGRAM."
+    )
 
 IPTABLES = "/usr/sbin/iptables"
-TOKEN_TELEGRAM = "8925291658:AAGpUHBIMs2VxBHM2mwbTEouaDwXuK7vCWc"
-CHAT_ID_TELEGRAM = "7239458170"
 
 def listar_ips_bloqueados():
     """
