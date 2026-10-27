@@ -1,16 +1,23 @@
-# Logs gerados em runtime
-Alerta_Login.log
-*.log
+# Credenciais e variáveis de ambiente (NUNCA versionar)
+.env
+*.env
 
-# Cache do Python
+# Logs (do sistema e gerados pelo script)
+*.log
+Alerta_Login.log
+
+# Cache e bytecode do Python
 __pycache__/
+*.py[cod]
 *.pyc
 *.pyo
 
-# Ambiente virtual (se usar)
+# Ambientes virtuais (caso use venv)
 venv/
 .venv/
 
-# Arquivos temporários
+# Arquivos temporários do sistema e do projeto
 *.tmp
 .DS_Store
+intruso.jpg
+teste.jpg

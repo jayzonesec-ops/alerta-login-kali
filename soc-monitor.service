@@ -1,0 +1,16 @@
+[Unit]
+Description=SOC - Monitor de eventos (journalctl + Telegram)
+After=network-online.target soc-notify-boot.service
+Wants=network-online.target
+Requires=soc-notify-boot.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/jaison/Ferramentas/Ferramentas_OK/Gerenciadores/Alerta_Login_Kali/Alerta_Login_Kali.py
+Restart=always
+RestartSec=5
+# Roda como root para poder executar sudo iptables sem senha
+User=root
+
+[Install]
+WantedBy=multi-user.target

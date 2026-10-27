@@ -1,318 +1,442 @@
 # 🛡️ Alerta Login Kali
 
-> Script em Python que monitora eventos de segurança do sistema e envia alertas em tempo real para o **Telegram** — com **foto do operador local** capturada pela webcam. Detecta inicialização do sistema, login local (sucesso e falha) e desligamento/reboot, inclusive via interface gráfica.
+> HIDS/SOAR tático em Python que monitora eventos de segurança do sistema e envia alertas em tempo real para o Telegram, com captura de foto pela webcam e controle remoto de firewall via botões interativos.
 
-![Versão](https://img.shields.io/badge/versão-1.0-blue?style=for-the-badge)
-![Plataforma](https://img.shields.io/badge/plataforma-Linux-333?style=for-the-badge&logo=linux&logoColor=white)
-![Python](https://img.shields.io/badge/python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Telegram](https://img.shields.io/badge/telegram-bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)
-![Systemd](https://img.shields.io/badge/systemd-journal-000?style=for-the-badge&logo=systemd&logoColor=white)
-![Licença](https://img.shields.io/badge/licença-MIT-green?style=for-the-badge)
+https://img.shields.io/badge/versão-2.0-blue?style=for-the-badge
+https://img.shields.io/badge/plataforma-Linux-333?style=for-the-badge&logo=linux&logoColor=white
+https://img.shields.io/badge/python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white
+https://img.shields.io/badge/telegram-bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white
+https://img.shields.io/badge/systemd-journal-000?style=for-the-badge&logo=systemd
+https://img.shields.io/badge/licença-MIT-green?style=for-the-badge
 
 ---
 
 > [!NOTE]
-> O **Alerta Login Kali** é um HIDS/SOAR tático minimalista: ele lê o `journalctl` em tempo real e, sempre que detecta um evento relevante (boot, login local, falha de autenticação, shutdown/reboot), envia uma mensagem no Telegram. Nos eventos críticos, **tira uma foto pela webcam** para identificar quem estava na frente da máquina.
+> O **Alerta Login Kali** lê o `journalctl` em tempo real e notifica o administrador sobre eventos sensíveis:
 >
-> O script é iniciado automaticamente no boot via `cron @reboot`, mas também pode ser executado manualmente para testes.
+> - Inicialização do sistema
+> - Tentativas de acesso SSH
+> - Comandos `sudo`
+> - Login local
+> - Desligamento e reinicialização
+>
+> **Novidade na v2.0:** o bot permite bloquear e desbloquear IPs diretamente pelo Telegram com botões interativos. As regras de firewall são persistentes e sobrevivem a reinicializações.
 
 ---
 
-## 📋 Índice
+# 📋 Índice
 
-- [Sobre o Projeto](#-sobre-o-projeto)
-- [Funcionalidades](#-funcionalidades)
-- [Eventos Monitorados](#-eventos-monitorados)
-- [Tecnologias Utilizadas](#-tecnologias-utilizadas)
-- [Pré-requisitos](#-pré-requisitos)
-- [Estrutura do Projeto](#-estrutura-do-projeto)
-- [Configuração e Execução](#️-configuração-e-execução)
-- [Configurando o Bot do Telegram](#-configurando-o-bot-do-telegram)
-- [Agendando no Cron](#-agendando-no-cron)
-- [Uso](#-uso)
-- [Personalização](#-personalização)
-- [Limitações Conhecidas](#️-limitações-conhecidas)
-- [Solução de Problemas](#-solução-de-problemas)
-- [Licença](#-licença)
-- [Autor](#-autor)
-
----
-
-## 🔍 Sobre o Projeto
-
-O **Alerta Login Kali** é um monitor de segurança passivo que roda em segundo plano e notifica o administrador via Telegram sobre eventos sensíveis do sistema operacional. Ele foi criado para monitorar máquinas expostas fisicamente (laboratório, escritório, home office) e responder à pergunta: **"quem ligou, tentou logar ou desligou essa máquina?"**
-
-O script:
-
-- ✅ Envia alerta + **foto** quando o sistema é **inicializado**
-- ✅ Envia alerta + **foto** quando alguém faz **login local com sucesso**
-- ✅ Envia alerta + **foto** quando alguém **falha no login local** (com cooldown de 60s)
-- ✅ Envia alerta quando o sistema é **desligado ou reiniciado** (incluindo via interface gráfica)
-- ✅ Ignora ruído: não alerta sobre SSH, `sudo`, USB, rede, bluetooth ou microSD
-- ✅ Roda automaticamente no boot via `cron @reboot`
+- #-sobre-o-projeto
+- #-funcionalidades
+- #-eventos-monitorados
+- #-tecnologias-utilizadas
+- #-pré-requisitos
+- #️-instalação-passo-a-passo
+- #-configuração-do-firewall-base
+- #-configurando-o-bot-do-telegram
+- #-ativando-os-serviços
+- #-como-usar-o-bot
+- #️-limitações-conhecidas
+- #️-solução-de-problemas
+- #-licença
+- #-autor
 
 ---
 
-## ✨ Funcionalidades
+# 🔍 Sobre o Projeto
 
-- ✅ **Captura de foto** na inicialização do sistema
-- ✅ **Captura de foto** em login local bem-sucedido
-- ✅ **Captura de foto** em falha de autenticação local (com cooldown)
-- ✅ **Detecção de reboot/shutdown** via `systemd-shutdown`, `systemd-logind` e `gnome-session`
-- ✅ **Alerta em tempo real** no Telegram via Bot API
-- ✅ **Parser de logs** do `journalctl -f` em tempo real
-- ✅ **Cooldown configurável** entre fotos de falha (`COOLDOWN_FOTO_FALHA`)
-- ✅ **Redirecionamento de log** para arquivo local (útil para depuração)
-- ✅ **Autostart** via `cron @reboot` (sem necessidade de root)
+O **Alerta Login Kali** é um monitor de segurança executado em segundo plano que ajuda a responder à pergunta:
+
+**Quem iniciou sessão, tentou acessar ou desligou esta máquina?**
+
+Na versão 2.0, o projeto oferece recursos de **SOAR (Security Orchestration, Automation and Response)**.
+
+Quando uma tentativa de autenticação SSH falha, o bot pode enviar um alerta contendo um botão para bloqueio imediato do IP.
+
+Durante a inicialização, o sistema também pode enviar automaticamente a lista de IPs bloqueados, juntamente com botões para desbloqueio.
+
+## Mudança importante na v2.0
+
+O projeto deixou de utilizar `cron`.
+
+Toda a execução agora é controlada pelo **systemd**, que oferece:
+
+- Reinicialização automática do serviço em caso de falha
+- Inicialização no boot
+- Melhor gerenciamento dos processos
+- Redução de notificações duplicadas
 
 ---
 
-## 📡 Eventos Monitorados
+# ✨ Funcionalidades
 
-| Evento | Fonte no `journalctl` | Alerta | Foto |
-|--------|----------------------|--------|------|
-| Inicialização do sistema | execução do script no `@reboot` | ✅ | ✅ |
-| Login local com sucesso | `pam_unix`, `gdm-password`, `lightdm` | ✅ | ✅ |
-| Falha de login local | `pam_unix`, `gdm-password`, `lightdm` | ✅ | ✅ (cooldown 60s) |
-| Reboot | `systemd-shutdown`, `systemd-logind`, `gnome-session` | ✅ | ❌ |
-| Shutdown | `systemd-shutdown`, `systemd-logind`, `gnome-session` | ✅ | ❌ |
+- ✅ Alerta de inicialização com captura de foto pela webcam
+- ✅ Alerta de login local bem-sucedido com foto
+- ✅ Alerta de falha de login local com foto
+- ✅ Alerta de comandos executados via `sudo`
+- ✅ Alerta de tentativas de autenticação SSH malsucedidas
+- ✅ Bloqueio de IPs diretamente pelo Telegram
+- ✅ Desbloqueio de IPs diretamente pelo Telegram
+- ✅ Persistência das regras de firewall com `iptables-persistent`
+- ✅ Envio automático da lista de IPs bloqueados na inicialização
+- ✅ Cooldown para reduzir alertas repetidos do mesmo IP
 
 ---
 
-## 🛠 Tecnologias Utilizadas
+# 📡 Eventos Monitorados
+
+| Evento | Alerta | Botão de Ação | Foto |
+|----------|---------|---------|---------|
+| Inicialização do sistema | ✅ | — | ✅ |
+| Login local com sucesso | ✅ | — | ✅ |
+| Falha de login local | ✅ | — | ✅ |
+| Falha de autenticação SSH | ✅ | ❌ Bloquear IP | ❌ |
+| Comando executado via sudo | ✅ | — | ❌ |
+| Lista de IPs bloqueados na inicialização | ✅ | ✅ Desbloquear IP | ❌ |
+| Reinicialização ou desligamento | ✅ | — | ❌ |
+
+---
+
+# 🛠 Tecnologias Utilizadas
 
 | Tecnologia | Função |
-|------------|--------|
-| **Python 3** | Linguagem do script |
-| **systemd/journalctl** | Leitura de logs do sistema em tempo real |
-| **Telegram Bot API** | Envio de mensagens e fotos |
-| **fswebcam** | Captura de imagem pela webcam |
-| **requests** | Requisições HTTP para o Telegram |
-| **cron** | Agendamento no boot (`@reboot`) |
+|------------|---------|
+| Python 3 | Linguagem dos scripts |
+| systemd / journalctl | Leitura de logs e gerenciamento dos serviços |
+| iptables-persistent | Persistência do firewall |
+| Telegram Bot API | Interface de alertas e controle |
+| fswebcam | Captura de imagens |
+| requests | Comunicação HTTP |
+| python-dotenv | Leitura das variáveis do arquivo `.env` |
 
 ---
 
-## 📦 Pré-requisitos
+# 📦 Pré-requisitos
 
-- **Sistema operacional:** Linux com systemd (testado em **Kali Linux**)
-- **Python:** 3.x
-- **Webcam:** conectada e acessível (ex: `/dev/video0`)
-- **Bot do Telegram:** token e chat ID válidos
-- **Usuário no grupo `systemd-journal`** (para ler logs de login)
+- Linux com `systemd` (testado em Kali Linux)
+- Python 3.x
+- Webcam acessível em `/dev/video0` (ou equivalente)
+- Bot Telegram configurado
+- Permissões administrativas (root)
 
-### Instalação das dependências
+## Instalação das dependências
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-pip fswebcam
-pip3 install requests
+
+sudo apt install -y \
+python3 \
+python3-requests \
+python3-dotenv \
+fswebcam \
+iptables-persistent
 ```
 
-### Permissão para ler os logs do systemd
-
-```bash
-sudo usermod -aG systemd-journal $USER
-```
-
-> [!IMPORTANT]
-> Após adicionar o usuário ao grupo `systemd-journal`, faça **logout e login** (ou reinicie) para o grupo ter efeito. Sem isso, o script só verá os próprios logs e **não detectará logins de outros usuários**.
+> [!WARNING]
+> A instalação de `iptables-persistent` pode remover o `ufw` para evitar conflitos. Verifique atentamente as mensagens exibidas pelo instalador.
 
 ---
 
-## 📁 Estrutura do Projeto
+# ⚙️ Instalação Passo a Passo
 
-```text
-Gerenciadores/Alerta_Login_Kali/
-├── Alerta_Login.py        # Script principal
-├── Alerta_Login.log       # Log gerado em runtime (não versionar)
-└── README.md              # Este arquivo
-└── LICENSE
-```
----
-
-## ⚙️ Configuração e Execução
-
-### 1️⃣ Clonar o repositório
+## 1. Clonar o repositório
 
 ```bash
 git clone https://github.com/jayzonesec-ops/alerta-login-kali.git
+
 cd alerta-login-kali
 ```
----
 
-### 2️⃣ Editar as credenciais do Telegram
-
-Abra o script e edite as duas primeiras linhas de configuração:
-
-```python
-TOKEN_TELEGRAM = "SEU_TOKEN_AQUI"
-CHAT_ID_TELEGRAM = "SEU_CHAT_ID_AQUI"
-```
-
-Veja a seção [Configurando o Bot do Telegram](#-configurando-o-bot-do-telegram) para saber como obter esses valores.
-
-### 3️⃣ Testar manualmente
+## 2. Criar o diretório do SOC
 
 ```bash
-cd ~/Alerta_Login_Kali
-python3 Alerta_Login.py
+sudo mkdir -p /opt/soc
 ```
 
-Se estiver tudo certo, você deve receber no Telegram:
-
-- Mensagem de "SOC: Sistema Inicializado"
-- Foto do operador local
-
-Para encerrar o teste, use `Ctrl+C`.
-
----
-
-## 🤖 Configurando o Bot do Telegram
-
-1. No Telegram, fale com o **@BotFather** e crie um bot com `/newbot`.
-2. Copie o **token** gerado (formato `123456789:ABCdef...`).
-3. Fale com o **@userinfobot** para descobrir seu **chat ID**.
-4. Envie uma mensagem qualquer para o seu bot (senão ele não consegue te responder).
-5. Cole os valores no topo do `Alerta_Login.py`.
-
----
-
-## ⏰ Agendando no Cron
-
-### Jeito certo: crontab do **seu usuário** (sem sudo)
+## 3. Copiar os arquivos Python
 
 ```bash
-crontab -e
+sudo cp soc_helpers.py /opt/soc/
+sudo cp soc-notify-boot.py /opt/soc/
+sudo cp Alerta_Login_Kali.py /opt/soc/
+
+sudo chmod +x /opt/soc/*.py
 ```
 
-Na primeira vez, o sistema pergunta qual editor usar (nano, vim, etc.). Escolha o de sua preferência.
+## 4. Copiar os serviços do systemd
 
-Adicione a linha abaixo **no final do arquivo**:
-
-```cron
-@reboot sleep 10 && /usr/bin/python3 /home/usuario/Alerta_Login_Kali/Alerta_Login.py > /home/usuario/Alerta_Login_Kali/Alerta_Login.log 2>&1
+```bash
+sudo cp soc-monitor.service /etc/systemd/system/
+sudo cp soc-notify-boot.service /etc/systemd/system/
 ```
 
-### O que cada parte faz
+## 5. Criar o arquivo `.env`
 
-| Parte | Significado |
-|-------|-------------|
-| `@reboot` | Executa **uma vez**, toda vez que o sistema iniciar |
-| `sleep 10` | Espera **10 segundos** antes de rodar (dá tempo do systemd/journalctl subirem) |
-| `/usr/bin/python3` | Caminho absoluto do interpretador Python (cron não usa `$PATH` do shell) |
-| `/home/usuario/.../Alerta_Login.py` | Caminho absoluto do script |
-| `>` | Redireciona a **saída padrão** para o log |
-| `/home/usuario/.../Alerta_Login.log` | Arquivo onde ficam os logs do script |
-| `2>&1` | Redireciona também os **erros** para o mesmo log |
+```bash
+sudo nano /opt/soc/.env
+```
 
-### Por que **não** usar `sudo crontab -e`
+Conteúdo:
 
-- O script **não precisa de root** — ele só lê logs e acessa a webcam.
-- Rodar como root faria a webcam e o `/tmp/intruso.jpg` ficarem com dono `root`, o que pode causar conflito.
-- O `journalctl` já foi liberado pro seu usuário via grupo `systemd-journal`.
-- Segurança: menos privilégio = menos risco.
+```env
+TOKEN_TELEGRAM=seu_token_aqui
+CHAT_ID_TELEGRAM=seu_chat_id_aqui
+```
 
-> [!TIP]
-> Para conferir se o cron agendou corretamente, rode `crontab -l`. Para ver se o cron executou, use `grep CRON /var/log/syslog`.
+Defina permissões restritas:
+
+```bash
+sudo chmod 600 /opt/soc/.env
+```
+
+## 6. Remover a cópia clonada (opcional)
+
+Execute apenas após confirmar que todos os arquivos foram copiados corretamente.
+
+```bash
+cd ~
+
+rm -rf alerta-login-kali/
+```
 
 ---
 
-## 📡 Uso
+# 🔥 Configuração do Firewall Base
 
-Após o boot, o script roda em segundo plano e envia notificações no Telegram conforme os eventos acontecem.
+> [!WARNING]
+> As regras abaixo alteram o firewall da máquina. Execute-as preferencialmente pelo console local para evitar perda de acesso remoto.
 
-### Exemplos de mensagens enviadas
+```bash
+# Permite tráfego de saída
+sudo iptables -A OUTPUT -j ACCEPT
+
+# Permite conexões estabelecidas
+sudo iptables -A INPUT \
+-m conntrack \
+--ctstate ESTABLISHED,RELATED \
+-j ACCEPT
+
+# Permite localhost
+sudo iptables -A INPUT -i lo -j ACCEPT
+
+# Permite SSH
+sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+
+# Bloqueio padrão
+sudo iptables -P INPUT DROP
+
+# Salva as regras
+sudo netfilter-persistent save
+```
+
+Para verificar:
+
+```bash
+sudo iptables -S
+
+sudo iptables -L -n -v
+```
+
+---
+
+# 🤖 Configurando o Bot do Telegram
+
+1. Abra o Telegram.
+2. Converse com o **@BotFather**.
+3. Crie um novo bot usando:
 
 ```text
-🚀 SOC: Sistema Inicializado
-O monitor de segurança subiu junto com o sistema.
-
-📸 Verificação Física de Inicialização
-Dispositivo ligado/reiniciado com sucesso.
+/newbot
 ```
+
+4. Copie o token gerado.
+5. Obtenha seu Chat ID usando o **@userinfobot**.
+6. Envie uma mensagem para seu bot.
+7. Configure os dados no arquivo:
 
 ```text
-🔓 ALERTA: Login efetuado na Máquina
-Sessão local aberta com sucesso.
-👤 Usuário: jaison
+/opt/soc/.env
 ```
+
+> [!WARNING]
+> Nunca publique o token do bot no GitHub. O arquivo `.env` deve permanecer protegido pelas permissões `600`.
+
+---
+
+# 🚀 Ativando os Serviços
+
+Recarregue o systemd:
+
+```bash
+sudo systemctl daemon-reload
+```
+
+Habilite os serviços:
+
+```bash
+sudo systemctl enable soc-notify-boot.service
+
+sudo systemctl enable soc-monitor.service
+```
+
+Inicie os serviços:
+
+```bash
+sudo systemctl start soc-notify-boot.service
+
+sudo systemctl start soc-monitor.service
+```
+
+Verifique o status:
+
+```bash
+sudo systemctl status soc-notify-boot.service
+
+sudo systemctl status soc-monitor.service
+```
+
+Se tudo estiver correto, você receberá no Telegram:
+
+- Alerta de inicialização
+- Foto da webcam
+- Lista de IPs bloqueados (quando houver)
+
+---
+
+# 📡 Como Usar o Bot
+
+## Durante a execução
+
+Ao detectar uma falha de autenticação SSH, o sistema pode enviar:
 
 ```text
-🚨 ALERTA: Falha de Autenticação Local
-Tentativa incorreta de login local:
-`pam_unix(gdm-password:auth): authentication failure; ...`
+❌ Bloquear IP
 ```
+
+Ao pressionar o botão, uma regra de firewall será criada.
+
+## Após reinicialização
+
+O sistema pode enviar a lista de IPs atualmente bloqueados.
+
+Cada IP terá o botão:
 
 ```text
-⚠️ AVISO: Sistema sendo Encerrado/Rebootado
-`systemd-logind: Powering off...`
+✅ Desbloquear
+```
+
+Utilize essas funções apenas em sistemas e redes que você administra ou possui autorização para proteger.
+
+---
+
+# ⚠️ Limitações Conhecidas
+
+- A captura da webcam pode falhar se o dispositivo estiver sendo utilizado por outro programa.
+- A detecção de login gráfico pode variar entre GDM, LightDM e SDDM.
+- O projeto não foi projetado para milhares de regras simultâneas no `iptables`.
+- Os eventos dependem da disponibilidade dos logs no sistema.
+
+---
+
+# 🛠️ Solução de Problemas
+
+## Não recebo mensagens no Telegram
+
+Verifique:
+
+- Se o arquivo `/opt/soc/.env` existe
+- Se o token está correto
+- Se o Chat ID está correto
+- Se você enviou uma mensagem para o bot
+
+Verifique o status:
+
+```bash
+sudo systemctl status soc-monitor.service
+```
+
+Logs em tempo real:
+
+```bash
+sudo journalctl -u soc-monitor.service -f
 ```
 
 ---
 
-## 🔧 Personalização
+## O botão de desbloquear não funciona
 
-No topo do script, você pode ajustar:
+Confira os logs:
 
-| Variável | Descrição | Padrão |
-|----------|-----------|--------|
-| `TOKEN_TELEGRAM` | Token do bot | (obrigatório) |
-| `CHAT_ID_TELEGRAM` | ID do chat que recebe alertas | (obrigatório) |
-| `COOLDOWN_FOTO_FALHA` | Segundos entre fotos em falha de login | `60` |
+```bash
+sudo journalctl -u soc-monitor.service -f
+```
 
----
+Confirme também:
 
-## ⚠️ Limitações Conhecidas
-
-- **Webcam é obrigatória** — se não houver webcam conectada, o alerta de texto ainda é enviado, mas a foto falha silenciosamente (log registra o erro).
-- **`fswebcam` pode conflitar** com outros programas que usam a webcam (Zoom, OBS, etc.). Se estiver em uso, a captura falha.
-- **Login gráfico (GDM/LightDM)**: a detecção via `pam_unix`/`gdm-password`/`lightdm` pode variar conforme a versão da distro. Teste antes de confiar.
-- **Desligamento via interface gráfica**: detectado via `systemd-logind` e `gnome-session`. Se usar outro ambiente (KDE, XFCE), pode não capturar — ajuste o filtro no script.
-- **Foto no `/tmp`**: o arquivo `intruso.jpg` é apagado após o envio, mas se o script for interrompido no meio, pode sobrar no `/tmp`.
+- Se o `iptables-persistent` está instalado
+- Se o serviço possui permissões suficientes
 
 ---
 
-## 🛠️ Solução de Problemas
+## Erro: Credenciais do Telegram não configuradas
 
-### Não recebo nada no Telegram
+O arquivo `.env` não foi encontrado ou está vazio.
 
-1. Confirme que o token e o chat ID estão corretos.
-2. Envie uma mensagem para o bot **antes** de testar (senão ele não pode te responder).
-3. Rode o script manualmente e veja se aparece erro no terminal.
+Verifique:
 
-### A foto não é enviada
-
-1. Confirme que a webcam existe: `ls /dev/video*`
-2. Teste o `fswebcam` isoladamente:
-   ```bash
-   fswebcam -r 640x480 /tmp/teste.jpg
-   ```
-3. Veja o log: `tail -f ~/Alerta_Login_Kali/Alerta_Login.log`
-
-### O cron não executa no `@reboot`
-
-1. Confirme que o serviço está ativo: `systemctl status cron`
-2. Veja se o cron registrou a execução: `grep CRON /var/log/syslog`
-3. Aumente o `sleep` (ex: `sleep 20`) — em máquinas lentas, 10s pode não bastar.
-
-### `journalctl` retorna "permissão negada"
-
-- Confirme que você está no grupo: `groups | grep systemd-journal`
-- Se não estiver: `sudo usermod -aG systemd-journal $USER` e faça logout/login.
+```text
+/opt/soc/.env
+```
 
 ---
 
-## 📄 Licença
+## Erro: can't open file
 
-Este projeto está sob a licença **MIT**. Consulte o arquivo `LICENSE` para mais detalhes.
+Normalmente indica caminho incorreto no serviço systemd.
+
+Verifique:
+
+```bash
+sudo systemctl cat soc-monitor.service
+```
+
+Editar:
+
+```bash
+sudo systemctl edit --full soc-monitor.service
+```
+
+Após alterações:
+
+```bash
+sudo systemctl daemon-reload
+
+sudo systemctl restart soc-monitor.service
+```
 
 ---
 
-## 👨‍💻 Autor
+# 📄 Licença
+
+Este projeto está licenciado sob a licença MIT.
+
+Consulte o arquivo:
+
+```text
+LICENSE
+```
+
+para os termos completos.
+
+---
+
+# 👨‍💻 Autor
 
 **JayZoneSec**
 
-- 🐙 GitHub: [@jayzonesec-ops](https://github.com/jayzonesec-ops)
-- 📦 Projeto: [Alerta Login Kali](https://github.com/jayzonesec-ops/alerta-login-kali)
+- **GitHub:** [@jayzonesec-ops](https://github.com/jayzonesec-ops)
+- **Projeto:** [Alerta Login Kali](https://github.com/jayzonesec-ops/alerta-login-kali)
 
-💻 Built by [JayZoneSec](https://github.com/jayzonesec-ops) — Ethical Hacking & Tools 🔐
+---
+
+*Built by JayZoneSec — Ethical Hacking & Tools 🔐*
